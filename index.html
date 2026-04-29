@@ -275,29 +275,19 @@ async function fetchSheet(sheetName) {
   return parseSheet(text, sheetName);
 }
 
-async function loadData() {
-  try {
-    const [despData, recData, apData] = await Promise.all([
-      fetchSheet('DESPESAS'),
-      fetchSheet('RECEITAS'),
-      fetchSheet('APORTES'),
-    ]);
-    DATA.despesas = parseDespesas(despData);
-    DATA.receitas = parseReceitas(recData);
-    DATA.aportes  = parseAportes(apData);
-    document.getElementById('loading-screen').style.display = 'none';
-    setQuick('ultimos_3', document.querySelector('.qbtn.active'));
-  } catch(err) {
-    console.error('Erro ao carregar planilha:', err);
-    document.getElementById('loading-screen').innerHTML = `
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;text-align:center;padding:40px">
-        <div style="font-size:32px;margin-bottom:16px">⚠️</div>
-        <div style="font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:8px">Erro ao carregar dados</div>
-        <div style="font-size:13px;color:#6b6b80;margin-bottom:20px">Verifique se a planilha está publicada na web e tente novamente.</div>
-        <button onclick="location.reload()" style="padding:10px 24px;background:#5BAD35;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Tentar novamente</button>
-        <div style="margin-top:12px;font-size:11px;color:#6b6b80">" + err.message + "</div>
-      </div>`;
-  }
+async function fetchSheet(name) {
+  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(name);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  const s = text.indexOf('{');
+  const e = text.lastIndexOf('}');
+  if (s === -1 || e === -1) throw new Error('Resposta invalida: ' + name);
+  const j = JSON.parse(text.slice(s, e + 1));
+  return {
+    rows: (j.table && j.table.rows) ? j.table.rows : [],
+    cols: (j.table && j.table.cols) ? j.table.cols : []
+  };
 }
 
 const MESES_LABEL={'2025-10':'Out/25','2025-11':'Nov/25','2025-12':'Dez/25','2026-01':'Jan/26','2026-02':'Fev/26','2026-03':'Mar/26','2026-04':'Abr/26'};
